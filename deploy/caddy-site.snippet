@@ -1,0 +1,14 @@
+
+# --- Marriage Swipe (added by deploy, files in /opt/marriage-swipe) ---
+marriage.smallgiants.co.in {
+	encode gzip
+	request_body {
+		max_size 14MB
+	}
+	handle_path /api/* {
+		reverse_proxy 172.30.250.1:8121
+	}
+	handle {
+		reverse_proxy 172.30.250.1:8120
+	}
+}

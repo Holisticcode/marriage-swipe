@@ -1,0 +1,69 @@
+# Marriage Swipe on one Linux server: Postgres + Node API + Next.js + Caddy (automatic HTTPS).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: marriage
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: marriageswipe
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marriage -d marriageswipe"]
+      interval: 5s
+      retries: 20
+
+  api:
+    build: ../api
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      DATABASE_URL: postgres://marriage:${POSTGRES_PASSWORD}@db:5432/marriageswipe
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      MEDIA_SECRET: ${MEDIA_SECRET:?set MEDIA_SECRET in .env}
+      CORS_ORIGINS: https://${DOMAIN}
+      PUBLIC_API_URL: https://${DOMAIN}/api
+      TRUST_PROXY: "1"
+      UPLOAD_DIR: /data/uploads
+      MODERATION_MODE: local
+      REQUIRE_EMAIL_VERIFICATION: ${REQUIRE_EMAIL_VERIFICATION:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-Marriage Swipe <no-reply@example.com>}
+      SMS_WEBHOOK_URL: ${SMS_WEBHOOK_URL:-}
+    volumes: [uploads:/data/uploads]
+    # first start downloads nothing: AI models ship inside the image. Give it ~1 minute to warm up.
+
+  web:
+    build:
+      context: ../web
+      args:
+        NEXT_PUBLIC_CONTACT_EMAIL: ${CONTACT_EMAIL:-support@example.com}
+        NEXT_PUBLIC_OPERATOR_NAME: ${OPERATOR_NAME:-The Marriage Swipe team}
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:4000
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [web, api]
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:
+  caddy_config:

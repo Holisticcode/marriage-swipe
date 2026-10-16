@@ -1,0 +1,18 @@
+{$DOMAIN} {
+	encode gzip
+	request_body {
+		max_size 14MB
+	}
+	# API and photos go straight to Node (strips the /api prefix)
+	handle_path /api/* {
+		reverse_proxy api:4000
+	}
+	# website, admin console and legal pages
+	handle {
+		reverse_proxy web:3000
+	}
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+	}
+}

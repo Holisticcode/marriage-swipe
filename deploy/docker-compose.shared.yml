@@ -1,0 +1,60 @@
+# Variant for a server that already has a reverse proxy (here: the shared Caddy on srv2025100).
+# Web and API listen only on the internal bridge address 172.30.250.1, which the shared Caddy can reach.
+name: marriage
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: marriage
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: marriageswipe
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marriage -d marriageswipe"]
+      interval: 5s
+      retries: 20
+
+  api:
+    build: ../api
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    ports: ["${BIND_IP:-127.0.0.1}:${API_PORT:-8121}:4000"]
+    environment:
+      NODE_ENV: production
+      PORT: "4000"
+      DATABASE_URL: postgres://marriage:${POSTGRES_PASSWORD}@db:5432/marriageswipe
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      MEDIA_SECRET: ${MEDIA_SECRET:?set MEDIA_SECRET in .env}
+      CORS_ORIGINS: https://${DOMAIN}
+      PUBLIC_API_URL: https://${DOMAIN}/api
+      TRUST_PROXY: "1"
+      UPLOAD_DIR: /data/uploads
+      MODERATION_MODE: local
+      REQUIRE_EMAIL_VERIFICATION: ${REQUIRE_EMAIL_VERIFICATION:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-Marriage Swipe <no-reply@example.com>}
+      SMS_WEBHOOK_URL: ${SMS_WEBHOOK_URL:-}
+    volumes: [uploads:/data/uploads]
+    mem_limit: 1500m
+
+  web:
+    build:
+      context: ../web
+      args:
+        NEXT_PUBLIC_CONTACT_EMAIL: ${CONTACT_EMAIL:-support@example.com}
+        NEXT_PUBLIC_OPERATOR_NAME: ${OPERATOR_NAME:-The Marriage Swipe team}
+    restart: unless-stopped
+    ports: ["${BIND_IP:-127.0.0.1}:${WEB_PORT:-8120}:3000"]
+    environment:
+      API_URL: http://api:4000
+    mem_limit: 600m
+
+volumes:
+  pgdata:
+  uploads:
