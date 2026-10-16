@@ -1,0 +1,58 @@
+name: Build Android release
+on:
+  workflow_dispatch:
+    inputs:
+      app_id:
+        description: Android app ID (never change after the first Play upload)
+        default: com.smallgiants.marriageswipe
+      api_url:
+        default: https://marriage.smallgiants.co.in/api
+      site_url:
+        default: https://marriage.smallgiants.co.in
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    defaults: { run: { working-directory: mobile } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: subosito/flutter-action@v2
+        with: { channel: stable, cache: true }
+      - run: APP_ID="${{ inputs.app_id }}" python3 tool/prepare_android.py
+      - run: flutter pub get
+      - name: Signing key (uses repo secrets if set, otherwise creates a NEW key you must keep)
+        env:
+          KS_B64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          set -e
+          mkdir -p "$RUNNER_TEMP/key"
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/key/upload.jks"
+            PASS="$KS_PASS"; ALIAS="${KEY_ALIAS:-upload}"
+          else
+            PASS=$(openssl rand -hex 16); ALIAS=upload
+            keytool -genkeypair -v -keystore "$RUNNER_TEMP/key/upload.jks" -storetype PKCS12 -keyalg RSA -keysize 2048 -validity 10000 \
+              -alias "$ALIAS" -storepass "$PASS" -keypass "$PASS" -dname "CN=Marriage Swipe, O=Small Giants, C=IN"
+            base64 -w0 "$RUNNER_TEMP/key/upload.jks" > "$RUNNER_TEMP/key/UPLOAD_KEYSTORE_BASE64.txt"
+            printf "KEEP THIS FOLDER SAFE. You need this key for every future app update.\nKEYSTORE_PASSWORD=%s\nKEY_ALIAS=%s\nUPLOAD_KEYSTORE_BASE64 = contents of UPLOAD_KEYSTORE_BASE64.txt\n" "$PASS" "$ALIAS" > "$RUNNER_TEMP/key/README-KEEP-SAFE.txt"
+            echo "NEW_KEY=1" >> "$GITHUB_ENV"
+          fi
+          printf "storePassword=%s\nkeyPassword=%s\nkeyAlias=%s\nstoreFile=%s\n" "$PASS" "$PASS" "$ALIAS" "$RUNNER_TEMP/key/upload.jks" > android/key.properties
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - run: flutter build appbundle --release --dart-define=API_URL=${{ inputs.api_url }} --dart-define=SITE_URL=${{ inputs.site_url }}
+      - run: flutter build apk --release --dart-define=API_URL=${{ inputs.api_url }} --dart-define=SITE_URL=${{ inputs.site_url }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: |
+            mobile/build/app/outputs/bundle/release/app-release.aab
+            mobile/build/app/outputs/flutter-apk/app-release.apk
+      - if: env.NEW_KEY == '1'
+        uses: actions/upload-artifact@v4
+        with:
+          name: KEEP-SAFE-upload-signing-key
+          path: ${{ runner.temp }}/key/
+          retention-days: 7

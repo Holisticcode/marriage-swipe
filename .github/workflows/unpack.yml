@@ -17,7 +17,7 @@ jobs:
           rm -rf /tmp/u && mkdir /tmp/u && case "$z" in *.zip) unzip -q "$z" -d /tmp/u;; *) tar -xJf "$z" -C /tmp/u;; esac
           src=/tmp/u/marriage-swipe
           test -d "$src/api"
-          rsync -a --delete --exclude .git --exclude upload --exclude .github/workflows/unpack.yml "$src"/ ./
+          rsync -a --delete --exclude .git --exclude upload --exclude .github "$src"/ ./
           rm -rf upload
           git config user.name "unpack-bot"
           git config user.email "actions@users.noreply.github.com"
