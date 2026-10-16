@@ -1,0 +1,26 @@
+name: Unpack uploaded code
+on:
+  push:
+    paths: ['upload/**']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace the code with the uploaded zip
+        run: |
+          set -euo pipefail
+          z=$(ls upload/* | head -1)
+          rm -rf /tmp/u && mkdir /tmp/u && case "$z" in *.zip) unzip -q "$z" -d /tmp/u;; *) tar -xJf "$z" -C /tmp/u;; esac
+          src=/tmp/u/marriage-swipe
+          test -d "$src/api"
+          rsync -a --delete --exclude .git --exclude upload --exclude .github/workflows/unpack.yml "$src"/ ./
+          rm -rf upload
+          git config user.name "unpack-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "Unpack $(basename "$z")"
+          git push
