@@ -33,9 +33,10 @@ if kts.exists():
     g = re.sub(r'namespace\s*=\s*"[^"]*"', f'namespace = "{app_id}"', g)
     g = re.sub(r'minSdk\s*=\s*flutter\.minSdkVersion', 'minSdk = 23', g)
     if 'keystoreProperties' not in g:
-        g = g.replace('android {', '''val keystoreProperties = java.util.Properties()
+        g = 'import java.io.FileInputStream\nimport java.util.Properties\n\n' + g
+        g = g.replace('android {', '''val keystoreProperties = Properties()
 val keystoreFile = rootProject.file("key.properties")
-if (keystoreFile.exists()) keystoreProperties.load(java.io.FileInputStream(keystoreFile))
+if (keystoreFile.exists()) keystoreProperties.load(FileInputStream(keystoreFile))
 
 android {''', 1)
         g = g.replace('buildTypes {', '''signingConfigs {
