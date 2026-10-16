@@ -73,7 +73,6 @@ export default function MemberApp() {
           {(['discover', 'matches', 'me'] as const).map((t) => (
             <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}>
               <span className="tl">{t === 'discover' ? 'Discover' : t === 'matches' ? 'Matches' : 'Profile'}</span>
-              {tab === t && <span>{t === 'discover' ? 'Discover' : t === 'matches' ? 'Matches' : 'Profile'}</span>}
               {tab !== t && <span aria-hidden="true">{t === 'discover' ? '♥' : t === 'matches' ? '✉' : '☺'}</span>}
               {t === 'matches' && unread > 0 && <span className="badge">{unread}</span>}
             </button>
