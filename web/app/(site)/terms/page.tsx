@@ -23,7 +23,7 @@ export default function Terms() {
       <h2>No guarantees</h2>
       <p>We cannot guarantee you will find a partner or that every member is who they say they are. The service is provided as is, to the extent the law allows.</p>
       <h2>Privacy</h2>
-      <p>See our <Link href="/privacy">privacy policy</Link>.</p>
+      <p>See our <Link href="/privacy">privacy policy</Link> and <Link href="/child-safety">child safety standards</Link>.</p>
     </article>
   );
 }
