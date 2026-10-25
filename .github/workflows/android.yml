@@ -4,7 +4,7 @@ on:
     inputs:
       app_id:
         description: Android app ID (never change after the first Play upload)
-        default: com.smallgiants.marriageswipe
+        default: com.marriageswipe
       api_url:
         default: https://marriage.smallgiants.co.in/api
       site_url:
