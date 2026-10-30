@@ -21,6 +21,10 @@ jobs:
         with: { channel: stable, cache: true }
       - run: APP_ID="${{ inputs.app_id }}" python3 tool/prepare_android.py
       - run: flutter pub get
+      - name: Generate launcher icons from assets/icon/app_icon.png
+        run: |
+          dart run flutter_launcher_icons
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher*.xml
       - name: Signing key (uses repo secrets if set, otherwise creates a NEW key you must keep)
         env:
           KS_B64: ${{ secrets.UPLOAD_KEYSTORE_BASE64 }}
