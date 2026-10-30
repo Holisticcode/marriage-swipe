@@ -80,4 +80,24 @@ android {''', 1)
     groovy.write_text(g)
 else:
     sys.exit('Could not find android/app/build.gradle(.kts)')
+# Move MainActivity into the applicationId package. `flutter create` puts it under <org>.<project_name>
+# (e.g. com.marriage_swipe) but the manifest resolves ".MainActivity" against the namespace (= app_id),
+# which crashes at launch with ClassNotFoundException if the two differ.
+src_root = root / 'android/app/src/main'
+for lang, ext in (('kotlin', 'kt'), ('java', 'java')):
+    base = src_root / lang
+    if not base.exists():
+        continue
+    for old in list(base.rglob('MainActivity.' + ext)):
+        target = base.joinpath(*app_id.split('.')) / old.name
+        code = old.read_text()
+        code = re.sub(r'^package\s+[\w.]+', f'package {app_id}', code, count=1, flags=re.M)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(code)
+        if old.resolve() != target.resolve():
+            old.unlink()
+            d = old.parent
+            while d != base and not any(d.iterdir()):
+                d.rmdir(); d = d.parent
+
 print('Android project ready for', app_id)
